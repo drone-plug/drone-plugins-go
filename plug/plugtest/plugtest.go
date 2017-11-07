@@ -12,7 +12,7 @@ import (
 
 // T .
 type PT struct {
-	Env
+	env    map[string]string
 	T      *testing.T
 	R      plug.Runner
 	logbuf *bytes.Buffer
@@ -24,21 +24,19 @@ func New(t *testing.T, r plug.Runner) *PT {
 	if t == nil {
 		log.Fatal("t can not be nil")
 	}
-
 	if r == nil {
 		t.Fatal("Runner can not be nil")
 	}
-
-	env := make(Env)
-	env.SetVars(map[string]string{
-		"drone": "true",
-	})
-	return &PT{
-		Env:    env,
+	pt := &PT{
+		env:    make(map[string]string),
 		T:      t,
 		R:      r,
 		logbuf: &bytes.Buffer{},
 	}
+	pt.SetVars(map[string]string{
+		"drone": "true",
+	})
+	return pt
 }
 
 func (t *PT) Run() error {
@@ -50,7 +48,7 @@ func (t *PT) Run() error {
 	log := log.New(t.logbuf, "", 0)
 	s := plug.NewService(
 		plug.SetFlagSet(flag.NewFlagSet("-", flag.ContinueOnError)),
-		plug.SetEnvFunc(t.Env.EnvFunc),
+		plug.SetEnvFunc(t.envFunc),
 		plug.SetArgsFunc(func() []string { return []string{os.Args[0]} }),
 		plug.SetLogger(log),
 		plug.ContinueOnError(),
@@ -61,38 +59,24 @@ func (t *PT) Run() error {
 
 }
 
-func (t *PT) ensure() {
-	if !t.hasRun {
-		t.Run()
-	}
-}
-func (t *PT) AssertSuccess() {
-	t.ensure()
-	if t.Err != nil {
-		t.T.Log(t.logbuf.String())
-		t.T.Fatal("should have succeeded", t.Err)
-	}
-}
-
-func (t *PT) AssertFail() {
-	t.ensure()
-	if t.Err == nil {
-		t.T.Log(t.logbuf.String())
-		t.T.Fatal("should have failed")
-	}
-
-}
-
 func (t *PT) Output() string {
-	t.ensure()
 	// todo: document that buffer is emtpied
+	t.after()
 	return t.logbuf.String()
 }
 
-func (t *PT) AssertOutput(text string) {
-	// todo: document that buffer is emtpied
-	out := t.Output()
-	if out != text {
-		t.T.Fatalf("output not as expected!\n got:\n%s\n expected:\n%s", out, text)
+// after ensures that Run has been called.
+func (t *PT) after() {
+	t.T.Helper()
+	if !t.hasRun {
+		_ = t.Run()
+	}
+}
+
+// before ensures that run as not been called. stops the test
+func (t *PT) before() {
+	t.T.Helper()
+	if t.hasRun {
+		t.T.Fatal("has already run")
 	}
 }
