@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"flag"
 	"log"
+	"os"
 	"testing"
 
 	"github.com/drone-plug/drone-plugins-go/plug"
@@ -50,7 +51,7 @@ func (t *PT) Run() error {
 	s := plug.NewService(
 		plug.SetFlagSet(flag.NewFlagSet("-", flag.ContinueOnError)),
 		plug.SetEnvFunc(t.Env.EnvFunc),
-		plug.SetArgsFunc(func() []string { return []string{"command"} }),
+		plug.SetArgsFunc(func() []string { return []string{os.Args[0]} }),
 		plug.SetLogger(log),
 		plug.ContinueOnError(),
 	)
